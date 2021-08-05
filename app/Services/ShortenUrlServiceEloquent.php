@@ -6,9 +6,9 @@ use App\Criteria\ShortenUrlCriteria;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 use App\Repositories\ShortenUrlRepository;
-use App\Entities\ShortenUrl;
 use App\Fillers\ShortenUrlFiller;
 use App\Presenters\ShortenUrlPresenter;
+use App\Transformers\ShortenUrlTransformer;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\GoneHttpException;
 
@@ -19,15 +19,17 @@ class ShortenUrlServiceEloquent implements ShortenUrlService {
         $this->repository = $repository;
     }
 
-    public function create(array $data): ShortenUrl {
+    public function create(array $data): array {
         $attrs = ShortenUrlFiller::forCreate($data);
 
-        $shortenUrl = $this->repository->create($attrs);
+        $shortenUrl = $this->repository
+        ->setPresenter(ShortenUrlPresenter::class)
+        ->create($attrs);
 
         return $shortenUrl;
     }
 
-    public function read(string $code): ShortenUrl {
+    public function read(string $code): array {
         $shortenUrl = $this->repository
         ->scopeQuery(function ($q) {
             return $q->withTrashed();
@@ -36,11 +38,11 @@ class ShortenUrlServiceEloquent implements ShortenUrlService {
         ->first();
 
         if (null === $shortenUrl) {
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException('Shorten url not found');
         }
 
         if ($shortenUrl->isExpired() || $shortenUrl->deleted_at) {
-            throw new GoneHttpException();
+            throw new GoneHttpException('Shorten url is expired or deleted');
         }
 
         // Update hit count
@@ -48,7 +50,7 @@ class ShortenUrlServiceEloquent implements ShortenUrlService {
         ->where('id', $shortenUrl->id)
         ->increment('hit', 1);
 
-        return $shortenUrl;
+        return with(new ShortenUrlTransformer)->transform($shortenUrl);
     }
 
     public function list(array $params): array {

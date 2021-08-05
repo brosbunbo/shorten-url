@@ -36,26 +36,34 @@ class ShortenUrlsController extends Controller
      */
     public function store(ShortenUrlCreateRequest $request)
     {
-        $shortenUrl = $this->service->create($request->all());
+        $result = $this->service->create($request->all());
 
-        return response()->json($shortenUrl);
+        return response()->json([
+            'success' => true,
+            'data' => $result['data']
+        ]);
     }
 
     public function show(string $code) {
         $shortenUrl = $this->service->read($code);
 
-        return redirect()->away($shortenUrl->url);
+        return redirect()->away($shortenUrl['url']);
     }
 
     public function destroy(int $id) {
         $this->service->delete($id);
 
-        return response()->json();
+        return response()->json([
+            'success' => true
+        ]);
     }
 
     public function index(Request $request) {
-        $data = $this->service->list($request->all());
+        $result = $this->service->list($request->all());
 
-        return response()->json($data);
+        return response()->json([
+            'success' => true,
+            'data' => $result['data']
+        ]);
     }
 }
